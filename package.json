@@ -15,7 +15,9 @@
     "git:init": "git init && git add . && git commit -m 'Initial NutriScan AI commit'"
   },
   "dependencies": {
-    "hono": "^4.12.3"
+    "@google/generative-ai": "^0.24.1",
+    "hono": "^4.12.3",
+    "puppeteer": "^24.41.0"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260305.0",

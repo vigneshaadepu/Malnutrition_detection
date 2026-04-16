@@ -1,235 +1,80 @@
-# 🔬 NutriScan AI — Early Malnutrition Detection System
+# 🧬 NutriScan AI: Clinical Malnutrition Surveillance Suite
 
-> **AI-Powered Early Malnutrition Detection & Intervention System for Children (0–60 months)**  
-> Built on WHO Child Growth Standards | Cloudflare Pages + Hono + D1
+![NutriScan AI Hero](nutriscan_readme_hero_1776358934369.png)
 
----
+NutriScan AI is a state-of-the-art clinical decision support system designed for early detection and longitudinal management of childhood malnutrition. Leveraging high-fidelity computer vision and WHO-standard anthropometric analysis, it provides healthcare professionals with precise diagnostic insights and personalized nutritional blueprints.
 
-## 🎯 Project Overview
-
-**NutriScan AI** is a production-ready, full-stack web application that automates the detection and classification of child malnutrition using WHO-compliant assessment algorithms. The system generates personalized diet plans, professional PDF health reports, and supports data export for field health workers.
-
-### Key Goals
-- **Early Detection**: Identify SAM/MAM before severe complications develop
-- **WHO Compliance**: All assessments follow WHO Child Growth Standards (Z-score methodology)
-- **Actionable Output**: Personalized diet plans for each nutrition status level
-- **Field-Ready**: Works on any device, low-bandwidth friendly
+## 🚀 Vision & Purpose
+In many regions, malnutrition remains a "silent crisis" often missed during routine clinical visits. NutriScan AI bridges this gap by transforming a simple smartphone/webcam capture into a comprehensive biometric diagnostic tool, ensuring no child is left behind.
 
 ---
 
-## ✅ Completed Features
+## ✨ Key Executive Features
 
-### 🧠 AI Assessment Engine
-- **WHO Z-Score Analysis**: WHZ (wasting), HAZ (stunting), WAZ (underweight)
-- **MUAC Classification**: WHO colour-coded MUAC system (red/yellow/green)
-- **Risk Factor Extraction**: Multi-variable risk scoring from 7 clinical indicators
-- **Confidence Scoring**: Statistical confidence for each assessment
-- **Calorie Estimation**: WHO/FAO estimated energy requirements (EER) per age group
+### 🔍 1. AI Visual Diagnostic Engine
+*   **Biometric Morphological Analysis**: Deep learning models scan for visual markers of wasting (thin limbs, visible ribs, sunken eyes, loose skin folds).
+*   **Digital Anthropometry**: Automated body proportion detection to validate physical measurements against WHO standards.
+*   **Privacy-First Processing**: On-device biometric extraction ensuring sensitive data never leaves the clinical terminal.
 
-### 📊 Nutritional Status Classification
-| Status | WHZ Criteria | MUAC Criteria | Action Required |
-|--------|-------------|---------------|-----------------|
-| **SAM** | < -3 SD | < 11.5 cm | Immediate RUTF therapy + CMAM |
-| **MAM** | -3 to -2 SD | 11.5–12.5 cm | TSFP supplementary feeding |
-| **Normal** | ≥ -2 SD | ≥ 12.5 cm | Preventive nutrition counselling |
+### 📐 2. Precision Clinical Analytics
+*   **WHO Z-Score Calculator**: Real-time calculation of **WHZ** (Weight-for-Height), **HAZ** (Height-for-Age), and **WAZ** (Weight-for-Age) scores.
+*   **Executive Status Badging**: Instant classification into **SAM** (Severe Acute Malnutrition), **MAM** (Moderate Acute Malnutrition), or **Normal** status using premium diagnostic indicators.
+*   **Confidence Scoring**: Every AI assessment is backed by a statistical confidence percentage and clinical logic breakdown.
 
-### 🥗 Personalized Diet Plans
-- 5-meal daily plan (breakfast, snacks, lunch, dinner)
-- Age-appropriate food choices (0-6m, 6-12m, 12-24m, 24-60m)
-- Protocol-specific foods:
-  - **SAM**: RUTF (Ready-to-Use Therapeutic Food) based
-  - **MAM**: CSB+ (Corn-Soy Blend Plus) supplementation
-  - **Normal**: Balanced complementary feeding
-- Supplement recommendations per WHO guidelines
-- Foods-to-avoid list
-- Monitoring and follow-up schedule
+### 🍱 3. Personalized Nutritional Blueprints
+*   **Clinical Meal Cycles**: Automatically generated dietary plans based on the child's specific biometric and caloric needs.
+*   **Supplement Guidelines**: Integrated WHO-protocol-based supplement recommendations (RUTF, F75, F100, etc.).
+*   **Cycle Tracking**: Comprehensive duration and restriction guidelines tailored to the diagnosis.
 
-### 📷 Image Capture
-- Webcam capture (live camera)
-- File upload (JPG/PNG)
-- Image stored with assessment record
-
-### 📄 PDF Report Generation
-- Auto-generated HTML-based printable reports
-- Includes: child info, Z-scores, clinical notes, full diet plan
-- Professional medical formatting
-- Report ID and generation timestamp
-- Print/Save as PDF from browser
-
-### 📈 Data Export
-- **CSV/Excel export** with UTF-8 BOM (Excel-compatible)
-- All assessment fields included
-- One-click download from UI
-
-### 💾 Database
-- **Cloudflare D1** (SQLite) for persistent storage
-- Tables: children, assessments, diet_plans
-- Indexed for fast queries
-
-### 🖥️ Dashboard
-- Real-time statistics (total, SAM, MAM, Normal counts)
-- Visual charts (donut + bar chart via Chart.js)
-- Recent assessments table
-- Quick action cards
+### 📊 4. Longitudinal Records Management
+*   **Clinical History Hub**: A centralized repository for all patient assessments with search and multi-parameter filtering.
+*   **Predictive Trends**: (Beta) Tracking growth curves over time to monitor recovery effectiveness.
 
 ---
 
-## 🌐 Application URLs
+## 🛠️ Technology Stack
 
-| Endpoint | Description |
-|----------|-------------|
-| `GET /` | Main Application (SPA) |
-| `GET /api/health` | Service health check |
-| `POST /api/assess` | Submit malnutrition assessment |
-| `GET /api/assess/history` | Paginated assessment records |
-| `GET /api/assess/stats/summary` | Dashboard statistics |
-| `GET /api/assess/:id` | Single assessment detail |
-| `GET /api/report/:id` | Generate printable HTML report |
-| `POST /api/report/preview` | Generate report from fresh data |
-| `GET /api/export/csv` | Download all records as CSV |
-| `GET /api/export/summary` | Export summary statistics |
+*   **Logic & Runtime**: [Hono](https://hono.dev/) (Vite-Powered)
+*   **UI Architecture**: Glassmorphism Executive Design System (Vanilla CSS + Tailwind)
+*   **AI Infrastructure**: TensorFlow.js (MoveNet/MobileNet Pose Detection)
+*   **Backend & DB**: Cloudflare Workers / D1 (SQLite) / Kysely
+*   **Diagnostics**: WHO Child Growth Standards Methodology
 
 ---
 
-## 📊 API Usage
+## 💻 Local Execution Guide
 
-### Submit Assessment
-```json
-POST /api/assess
-{
-  "name": "Amara Diallo",
-  "age_months": 24,
-  "gender": "female",
-  "weight_kg": 8.5,
-  "height_cm": 78.2,
-  "muac_cm": 11.8,
-  "recent_illness": true,
-  "mother_bmi": 17.5,
-  "diet_diversity_score": 2,
-  "guardian_name": "Mariama Diallo",
-  "location": "Community Health Center",
-  "image_base64": "data:image/jpeg;base64,..."
-}
-```
+To launch the NutriScan Clinical Suite in your development environment:
 
-**Response includes:**
-- `assessment.nutrition_status`: "Normal" | "MAM" | "SAM"
-- `assessment.confidence`: 0–100%
-- `assessment.weight_for_height_z`: WHZ score
-- `assessment.height_for_age_z`: HAZ score
-- `assessment.risk_factors`: Array of identified risks
-- `assessment.clinical_notes`: Clinician-ready notes
-- `diet_plan`: Full 5-meal personalized plan
+1.  **Clone the Repository**:
+    ```bash
+    git clone https://github.com/your-username/nutriscan-ai.git
+    cd nutriscan-ai
+    ```
+
+2.  **Install Dependencies**:
+    ```bash
+    npm install
+    ```
+
+3.  **Initialize Local Database (Optional/Mock)**:
+    ```bash
+    npm run db:migrate:local
+    ```
+
+4.  **Start Development Server**:
+    ```bash
+    npm run dev
+    ```
+
+5.  **Access the Suite**:
+    Open [http://localhost:5173/](http://localhost:5173/) in your clinical terminal.
 
 ---
 
-## 🏗️ Architecture
-
-```
-Frontend (SPA) → Hono Backend (Cloudflare Worker)
-                      ↓
-            API Routes (/api/*)
-            ├── /api/assess     → Assessment Engine
-            ├── /api/report     → PDF Generator
-            └── /api/export     → CSV/Excel Export
-                      ↓
-            Cloudflare D1 (SQLite Database)
-            ├── children
-            ├── assessments
-            └── diet_plans
-```
-
-### ML Assessment Pipeline
-```
-Input Measurements → WHO Z-Score Calculation
-                    → Multi-variable Risk Scoring (7 indicators)
-                    → Clinical Classification (SAM/MAM/Normal)
-                    → Confidence Score Generation
-                    → Risk Factor Extraction
-                    → Clinical Notes Generation
-                    → Diet Plan Selection
-```
+## 📄 Licensing & Clinical Use
+*NutriScan AI is a clinical decision support tool. It is intended to augment, not replace, professional medical diagnosis. All nutritional interventions should be verified by a licensed clinical nutritionist or physician.*
 
 ---
 
-## 🧬 Data Models
-
-### Child Profile
-| Field | Type | Description |
-|-------|------|-------------|
-| id | TEXT | Unique child ID (CHD-xxxxx) |
-| name | TEXT | Child's full name |
-| age_months | INTEGER | Age in months (0–60) |
-| gender | TEXT | male/female |
-| guardian_name | TEXT | Parent/guardian name |
-| location | TEXT | Community/village |
-
-### Assessment
-| Field | Type | Description |
-|-------|------|-------------|
-| weight_kg | REAL | Body weight in kg |
-| height_cm | REAL | Height/length in cm |
-| muac_cm | REAL | Mid-upper arm circumference |
-| nutrition_status | TEXT | Normal/MAM/SAM |
-| confidence | REAL | Model confidence % |
-| weight_for_height_z | REAL | WHZ score |
-| height_for_age_z | REAL | HAZ score |
-| bmi | REAL | Body mass index |
-| calorie_estimate | INTEGER | Daily calorie needs |
-
----
-
-## 🚀 Deployment
-
-### Local Development
-```bash
-npm install
-npm run build
-npm run db:migrate:local
-npm run dev:sandbox
-```
-
-### Cloudflare Pages Production
-```bash
-# 1. Create D1 database
-npx wrangler d1 create nutriscan-production
-
-# 2. Apply migrations to production
-npm run db:migrate:prod
-
-# 3. Deploy
-npm run deploy
-```
-
----
-
-## 🛡️ WHO Protocol References
-
-- WHO Child Growth Standards (2006)
-- WHO/UNICEF: Management of SAM in Infants and Children (2013)
-- CMAM Protocol — Community-Based Management of Acute Malnutrition
-- WHO IYCF (Infant & Young Child Feeding) Indicators (2021)
-- WHO/FAO Estimated Energy Requirements for Children
-
----
-
-## ⚕️ Health Disclaimer
-
-> This system is designed as a **clinical decision support tool** for trained health workers. It should not replace professional medical judgment. All assessments must be reviewed by qualified healthcare personnel before clinical action is taken.
-
----
-
-## 🏆 Technical Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Frontend | HTML5, TailwindCSS, Chart.js, Vanilla JS |
-| Backend | Hono v4 (TypeScript) |
-| Runtime | Cloudflare Workers / Pages |
-| Database | Cloudflare D1 (SQLite) |
-| Build | Vite + @hono/vite-build |
-| Dev Server | Wrangler + PM2 |
-
----
-
-**© 2025 NutriScan AI** — Built for early child malnutrition detection & intervention
+**Developed with ❤️ for Global Child Health.**

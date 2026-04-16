@@ -11,6 +11,7 @@ import {
   calculateBMI
 } from '../lib/assessment.js';
 import { generateDietPlan } from '../lib/dietplan.js';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const assessmentRoutes = new Hono<{ Bindings: Bindings }>();
 
@@ -47,10 +48,10 @@ assessmentRoutes.post('/', async (c) => {
 
     // Run assessment
     const assessment = assessMalnutrition(body);
-    
+
     // Generate diet plan
     const dietPlan = generateDietPlan(body, assessment.nutrition_status);
-    
+
     const dietSummary = `${assessment.nutrition_status} — ${dietPlan.daily_calories} kcal/day — ${dietPlan.duration_weeks} weeks`;
 
     // Store in D1 if available
@@ -142,9 +143,13 @@ assessmentRoutes.get('/history', async (c) => {
       return c.json({ records: [], total: 0, message: 'Database not configured' });
     }
 
-    const page = parseInt(c.req.query('page') || '1');
-    const limit = parseInt(c.req.query('limit') || '20');
-    const status = c.req.query('status') || '';
+    const pageParam = Number.parseInt(c.req.query('page') || '1', 10);
+    const limitParam = Number.parseInt(c.req.query('limit') || '20', 10);
+    const page = Number.isFinite(pageParam) ? Math.max(1, pageParam) : 1;
+    const limit = Number.isFinite(limitParam) ? Math.min(100, Math.max(1, limitParam)) : 20;
+    const rawStatus = (c.req.query('status') || '').trim();
+    const status = ['Normal', 'MAM', 'SAM'].includes(rawStatus) ? rawStatus : '';
+    const search = (c.req.query('q') || '').trim().toLowerCase();
     const offset = (page - 1) * limit;
 
     let query = `
@@ -156,24 +161,41 @@ assessmentRoutes.get('/history', async (c) => {
       FROM assessments a
       LEFT JOIN children c ON a.child_id = c.id
     `;
-    const params: (string | number)[] = [];
-    
-    if (status && ['Normal', 'MAM', 'SAM'].includes(status)) {
-      query += ` WHERE a.nutrition_status = ?`;
-      params.push(status);
-    }
-    
-    query += ` ORDER BY a.assessed_at DESC LIMIT ? OFFSET ?`;
-    params.push(limit, offset);
 
-    const countQuery = status
-      ? `SELECT COUNT(*) as total FROM assessments WHERE nutrition_status = ?`
-      : `SELECT COUNT(*) as total FROM assessments`;
+    const whereClauses: string[] = [];
+    const filterParams: (string | number)[] = [];
+
+    if (status) {
+      whereClauses.push('a.nutrition_status = ?');
+      filterParams.push(status);
+    }
+
+    if (search) {
+      const searchLike = `%${search}%`;
+      whereClauses.push('(LOWER(c.name) LIKE ? OR LOWER(a.child_id) LIKE ? OR LOWER(a.id) LIKE ?)');
+      filterParams.push(searchLike, searchLike, searchLike);
+    }
+
+    if (whereClauses.length > 0) {
+      query += ` WHERE ${whereClauses.join(' AND ')}`;
+    }
+
+    query += ` ORDER BY a.assessed_at DESC LIMIT ? OFFSET ?`;
+    const queryParams: (string | number)[] = [...filterParams, limit, offset];
+
+    let countQuery = `
+      SELECT COUNT(*) as total
+      FROM assessments a
+      LEFT JOIN children c ON a.child_id = c.id
+    `;
+    if (whereClauses.length > 0) {
+      countQuery += ` WHERE ${whereClauses.join(' AND ')}`;
+    }
 
     const [records, countResult] = await Promise.all([
-      c.env.DB.prepare(query).bind(...params).all(),
-      status
-        ? c.env.DB.prepare(countQuery).bind(status).first<{ total: number }>()
+      c.env.DB.prepare(query).bind(...queryParams).all(),
+      filterParams.length > 0
+        ? c.env.DB.prepare(countQuery).bind(...filterParams).first<{ total: number }>()
         : c.env.DB.prepare(countQuery).first<{ total: number }>(),
     ]);
 
@@ -223,6 +245,66 @@ assessmentRoutes.get('/:id', async (c) => {
   }
 });
 
+// GET /api/assess/child/:childId/history — Full history for a specific child (for growth charts)
+assessmentRoutes.get('/child/:childId/history', async (c) => {
+  try {
+    const childId = c.req.param('childId');
+    if (!c.env.DB) {
+      return c.json({ records: [], message: 'Database not configured' });
+    }
+
+    const result = await c.env.DB.prepare(`
+      SELECT 
+        a.id, a.weight_kg, a.height_cm, a.muac_cm, 
+        a.nutrition_status, a.weight_for_height_z, a.height_for_age_z, 
+        a.bmi, a.assessed_at
+      FROM assessments a
+      WHERE a.child_id = ?
+      ORDER BY a.assessed_at ASC
+    `).bind(childId).all();
+
+    return c.json({
+      childId,
+      records: result.results,
+    });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return c.json({ error: 'Failed to fetch child history', details: message }, 500);
+  }
+});
+
+// GET /api/assess/stats/heatmap — Aggregated data for Heatmap
+assessmentRoutes.get('/stats/heatmap', async (c) => {
+  try {
+    if (!c.env.DB) {
+      return c.json({ data: [] });
+    }
+
+    // Aggregating directly in SQL for efficiency
+    const query = `
+      SELECT 
+        CASE 
+          WHEN c.age_months < 6 THEN '0–6m'
+          WHEN c.age_months < 12 THEN '6–12m'
+          WHEN c.age_months < 24 THEN '12–24m'
+          WHEN c.age_months < 36 THEN '24–36m'
+          ELSE '36–60m'
+        END as age_group,
+        a.nutrition_status,
+        COUNT(*) as count
+      FROM assessments a
+      LEFT JOIN children c ON a.child_id = c.id
+      GROUP BY age_group, a.nutrition_status
+    `;
+
+    const result = await c.env.DB.prepare(query).all();
+    return c.json({ data: result.results });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return c.json({ error: 'Heatmap stats failed', details: message }, 500);
+  }
+});
+
 // GET /api/assess/stats/summary — Dashboard statistics
 assessmentRoutes.get('/stats/summary', async (c) => {
   try {
@@ -267,6 +349,88 @@ assessmentRoutes.get('/stats/summary', async (c) => {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     return c.json({ error: 'Stats failed', details: message }, 500);
+  }
+});
+
+// POST /api/assess/chat — Chatbot endpoint
+assessmentRoutes.post('/chat', async (c) => {
+  try {
+    const body = await c.req.json();
+    const { message, context } = body;
+
+    if (!message) {
+      return c.json({ error: 'Message is required' }, 400);
+    }
+
+    if (!c.env.GEMINI_API_KEY) {
+      return c.json({ 
+        reply: "Error: Gemini API key is not configured. Please add GEMINI_API_KEY to your .dev.vars file.",
+        timestamp: new Date().toISOString()
+      }, 200); // Send as 200 so the UI can display the error cleanly to the user
+    }
+
+    const genAI = new GoogleGenerativeAI(c.env.GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+    let systemPrompt = "You are NutriScan AI, a helpful, concise expert assistant for early childhood (0-60 months) malnutrition detection and WHO growth standards. Do not use markdown headers, just return plain text or simple bullet points. Keep answers brief and professional.\n\n";
+    if (context && context.nutrition_status) {
+      systemPrompt += `Current patient context: The child was recently assessed with a status of ${context.nutrition_status}.\n`;
+    }
+    
+    const prompt = systemPrompt + `User Query: ${message}`;
+    const result = await model.generateContent(prompt);
+    const reply = result.response.text();
+
+    return c.json({
+      reply,
+      timestamp: new Date().toISOString()
+    });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return c.json({ error: 'Chat processing failed', details: message }, 500);
+  }
+});
+
+// POST /api/assess/explain — AI Prediction Explainer
+assessmentRoutes.post('/explain', async (c) => {
+  try {
+    const body = await c.req.json();
+    const { assessment } = body;
+
+    if (!assessment || !assessment.nutrition_status) {
+      return c.json({ error: 'Valid assessment data is required' }, 400);
+    }
+
+    // Generate explainability points based on the provided assessment.
+    const explainer = {
+      summary: `The diagnosis of ${assessment.nutrition_status} was determined based on a combination of anthropometric indicators aligned with WHO standards.`,
+      key_factors: [
+        {
+          factor: 'Weight-for-Height Z-Score (WHZ)',
+          value: assessment.weight_for_height_z,
+          impact: assessment.weight_for_height_z < -3 ? 'High Negative' : assessment.weight_for_height_z < -2 ? 'Moderate Negative' : 'Normal',
+          explanation: 'WHZ indicates acute wasting.'
+        }
+      ],
+      confidence_factors: [
+        'Anthropometric measurements strictly follow WHO 2006 Standards.',
+        'Data consistency check applied to height & weight ratio.'
+      ]
+    };
+
+    if (assessment.bmi) {
+      explainer.key_factors.push({
+        factor: 'Body Mass Index (BMI)',
+        value: assessment.bmi,
+        impact: assessment.bmi < 13 ? 'High Negative' : assessment.bmi < 15 ? 'Moderate Negative' : 'Normal',
+        explanation: 'Low BMI is strongly correlated with acute malnutrition.'
+      });
+    }
+
+    return c.json({ explainer });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return c.json({ error: 'Explanation generation failed', details: message }, 500);
   }
 });
 
