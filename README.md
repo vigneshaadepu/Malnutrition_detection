@@ -1,6 +1,6 @@
 # 🧬 NutriScan AI: Clinical Malnutrition Surveillance Suite
 
-![NutriScan AI Hero](https://images.unsplash.com/photo-1581594693702-fbdc51b2763b?auto=format&fit=crop&q=80&w=2070)
+![NutriScan AI Hero]([https://images.unsplash.com/photo-1581594693702-fbdc51b2763b?auto=format&fit=crop&q=80&w=2070](https://unsplash.com/photos/female-nutritionist-with-graph-gives-consultation-to-patient-indoors-in-the-office-mezaOkGO2hY))
 
 NutriScan AI is a state-of-the-art clinical decision support system designed for early detection and longitudinal management of childhood malnutrition. Leveraging high-fidelity computer vision and WHO-standard anthropometric analysis, it provides healthcare professionals with precise diagnostic insights and personalized nutritional blueprints.
 
